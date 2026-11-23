@@ -65,7 +65,7 @@
 </div>
 
 <script>
-  const TOKEN = "N5U980XPsxnZJpKej8xbtE0LxlNnA4ey";
+  const TOKEN = "N5U980XPsxnZJpKej8xbtE0LxINnA4ey";
   const API_BASE = "https://sgp1.blynk.cloud/external/api";
 
   let stateCoQuanAo = 0;
@@ -96,7 +96,7 @@
         setTimeout(() => {
           isSending = false;
           capNhatTrangThai();
-        }, 400);
+        }, 1000);
       })
       .catch(() => {
         isSending = false;
@@ -105,11 +105,15 @@
   }
 
   function toggleClothes() {
-    guiLenhPin('V0', stateCoQuanAo === 1 ? 0 : 1);
+    const nextVal = (stateCoQuanAo === 1) ? 0 : 1;
+    stateCoQuanAo = nextVal;
+    guiLenhPin('V0', nextVal);
   }
 
   function toggleMode() {
-    guiLenhPin('V1', stateCheDo === 1 ? 0 : 1);
+    const nextVal = (stateCheDo === 1) ? 0 : 1;
+    stateCheDo = nextVal;
+    guiLenhPin('V1', nextVal);
   }
 
   function capNhatTrangThai() {
