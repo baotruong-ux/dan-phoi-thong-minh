@@ -1,71 +1,3 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dàn Phơi Thông Minh (Điều Khiển Từ Xa)</title>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#1a73e8">
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; background-color: #f0f2f5; }
-    .card { background: white; max-width: 380px; margin: auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    h2 { color: #1a73e8; margin-bottom: 10px; }
-    .box { background: #f8f9fa; padding: 12px; border-radius: 10px; margin-bottom: 15px; text-align: left; font-size: 15px; line-height: 1.6; border: 1px solid #e0e0e0; }
-    button.btn { display: block; width: 100%; padding: 14px; margin: 10px 0; font-size: 15px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.15s; }
-    button.btn:active { transform: scale(0.97); }
-    .btn-green { background-color: #28a745; }
-    .btn-red { background-color: #dc3545; }
-    .btn-blue { background-color: #007bff; }
-    .btn-orange { background-color: #fd7e14; }
-    .btn-gray { background-color: #6c757d; }
-    button.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .slider-box { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
-    input[type=range] { width: 100%; cursor: pointer; }
-    input[type=range]:disabled { opacity: 0.4; cursor: not-allowed; }
-    .online-badge { font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; font-weight: bold; display: inline-block; margin-bottom: 12px; }
-  </style>
-</head>
-<body>
-
-<div class="card">
-  <h2>HỆ THỐNG DÀN PHƠI</h2>
-  <div id="connStatus" class="online-badge">Đang kết nối đám mây...</div>
-
-  <div class="box">
-    🌤️ <b>Thời tiết:</b> <span id="weather">Đang tải...</span><br>
-    👕 <b>Tình trạng đồ:</b> <span id="clothes">Đang tải...</span><br>
-    ⚙️ <b>Chế độ:</b> <span id="mode">Đang tải...</span><br>
-    📌 <b>Trạng thái:</b> <span id="status" style="color:#d9534f; font-weight:bold;">Đang tải...</span>
-  </div>
-
-  <button id="btnClothes" type="button" class="btn btn-blue" onclick="toggleClothes()">👕 BẮT ĐẦU PHƠI ĐỒ (BẬT HỆ THỐNG)</button>
-  <button id="btnMode" type="button" class="btn btn-orange" onclick="toggleMode()">🔄 CHẾ ĐỘ: TỰ ĐỘNG</button>
-
-  <div style="margin-top:15px;">
-    <button id="btnPhoi" type="button" class="btn btn-green" onclick="guiLenhPin('V2', 1)" disabled>☀️ ĐƯA RA PHƠI HẾT (0°)</button>
-    <button id="btnThu" type="button" class="btn btn-red" onclick="guiLenhPin('V2', 0)" disabled>🏠 THU VÀO HẾT (90°)</button>
-  </div>
-
-  <!-- Thanh trượt điều chỉnh góc quay tự do (Chỉ mở khi ở chế độ Thủ công) -->
-  <div class="slider-box">
-    <label><b>Điều chỉnh góc quay:</b> <span id="angleText">90</span>°</label>
-    <input id="angleSlider" type="range" min="0" max="90" value="90" disabled onchange="guiLenhPin('V6', this.value)" oninput="document.getElementById('angleText').innerText=this.value">
-    <div style="font-size: 12px; color: #666; display: flex; justify-content: space-between;">
-      <span>0° (Mở hết)</span>
-      <span>45° (Hé nửa)</span>
-      <span>90° (Thu hết)</span>
-    </div>
-  </div>
-
-  <div class="slider-box">
-    <label><b>Tốc độ quay:</b> <span id="speedText">20</span> ms/độ</label>
-    <input id="speedSlider" type="range" min="5" max="100" value="20" onchange="guiLenhPin('V3', this.value)" oninput="document.getElementById('speedText').innerText=this.value">
-  </div>
-</div>
-
-<script>
   const TOKEN = "N5U980XPsxnZJpKej8xbtE0LxlNnA4ey";
   const API_BASE = "https://sgp1.blynk.cloud/external/api";
 
@@ -73,6 +5,7 @@
   let stateCheDo = 1;
   let isSlidingSpeed = false;
   let isSlidingAngle = false;
+  let isSending = false; // Khóa chống bấm dồn dập làm nghẽn Blynk
 
   const speedSlider = document.getElementById('speedSlider');
   speedSlider.addEventListener('mousedown', () => isSlidingSpeed = true);
@@ -86,9 +19,23 @@
   angleSlider.addEventListener('touchstart', () => isSlidingAngle = true);
   angleSlider.addEventListener('touchend', () => isSlidingAngle = false);
 
+  // Thêm tham số thời gian &t=... và no-store để ép mạng 4G luôn gửi lệnh mới
   function guiLenhPin(pin, val) {
-    fetch(`${API_BASE}/update?token=${TOKEN}&${pin}=${val}`)
-      .then(() => setTimeout(capNhatTrangThai, 300));
+    if (isSending) return;
+    isSending = true;
+    document.getElementById('connStatus').innerText = "⏳ Đang gửi lệnh...";
+    
+    fetch(`${API_BASE}/update?token=${TOKEN}&${pin}=${val}&t=${Date.now()}`, { cache: "no-store" })
+      .then(() => {
+        setTimeout(() => {
+          isSending = false;
+          capNhatTrangThai();
+        }, 400);
+      })
+      .catch(() => {
+        isSending = false;
+        document.getElementById('connStatus').innerText = "🔴 Lỗi mạng 4G, thử lại!";
+      });
   }
 
   function toggleClothes() {
@@ -100,7 +47,8 @@
   }
 
   function capNhatTrangThai() {
-    fetch(`${API_BASE}/get?token=${TOKEN}&V0&V1&V3&V4&V5&V6`)
+    if (isSending) return; // Không đọc đè lúc đang gửi lệnh
+    fetch(`${API_BASE}/get?token=${TOKEN}&V0&V1&V3&V4&V5&V6&t=${Date.now()}`, { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
         document.getElementById('connStatus').innerText = "🟢 Đã kết nối từ xa (4G/WiFi)";
@@ -157,8 +105,4 @@
   }
 
   window.onload = capNhatTrangThai;
-  setInterval(capNhatTrangThai, 1500);
-</script>
-
-</body>
-</html>
+  setInterval(capNhatTrangThai, 3000); // Giãn nhịp đọc thành 3 giây để tránh giới hạn Blynk
